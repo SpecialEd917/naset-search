@@ -211,7 +211,7 @@
             };
 
             const formatDate = (dateStr) => {
-                if (!dateStr || dateStr === '1/1/70' || dateStr === '1/1/1970') return 'Not set';
+                if (!dateStr || dateStr === '1/1/70' || dateStr === '1/1/1970' || dateStr === '#N/A') return 'Not set';
                 return dateStr;
             };
 
@@ -222,6 +222,8 @@
                 if (record.BCISE) badges.push({ name: 'BCISE', value: record.BCISE });
                 if (record.BCSE) badges.push({ name: 'BCSE', value: record.BCSE });
                 if (record.BCCM) badges.push({ name: 'BCCM', value: record.BCCM });
+                if (record['OLD BCSE']) badges.push({ name: 'OLD BCSE', value: record['OLD BCSE'] });
+                if (record.PSPP) badges.push({ name: 'PSPP', value: record.PSPP });
                 if (record['BCASE Business']) badges.push({ name: 'BCASE Business', value: record['BCASE Business'] });
                 return badges;
             };
@@ -232,7 +234,7 @@
                 // BCASE Modules
                 for (let i = 1; i <= 6; i++) {
                     const moduleField = `BCASE Mod ${i}`;
-                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970' && record[moduleField] !== '#N/A' && record[moduleField].trim()) {
                         modules.push({ 
                             cert: 'BCASE', 
                             module: i, 
@@ -245,7 +247,7 @@
                 // BCIEP Modules
                 for (let i = 1; i <= 6; i++) {
                     const moduleField = `BCIEP Mod ${i}`;
-                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970' && record[moduleField] !== '#N/A' && record[moduleField].trim()) {
                         modules.push({ 
                             cert: 'BCIEP', 
                             module: i, 
@@ -258,7 +260,7 @@
                 // BCISE Modules
                 for (let i = 1; i <= 5; i++) {
                     const moduleField = `BCISE Mod ${i}`;
-                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970' && record[moduleField] !== '#N/A' && record[moduleField].trim()) {
                         modules.push({ 
                             cert: 'BCISE', 
                             module: i, 
@@ -271,7 +273,7 @@
                 // BCSE Modules
                 for (let i = 1; i <= 7; i++) {
                     const moduleField = `BCSE Mod ${i}`;
-                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970' && record[moduleField] !== '#N/A' && record[moduleField].trim()) {
                         modules.push({ 
                             cert: 'BCSE', 
                             module: i, 
@@ -284,12 +286,38 @@
                 // BCCM Modules
                 for (let i = 1; i <= 7; i++) {
                     const moduleField = `BCCM Mod ${i}`;
-                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970' && record[moduleField] !== '#N/A' && record[moduleField].trim()) {
                         modules.push({ 
                             cert: 'BCCM', 
                             module: i, 
                             date: record[moduleField],
                             name: `BCCM Module ${i}`
+                        });
+                    }
+                }
+                
+                // OLD BCSE Modules
+                for (let i = 1; i <= 5; i++) {
+                    const moduleField = `OLD BCSE Mod ${i}`;
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970' && record[moduleField] !== '#N/A' && record[moduleField].trim()) {
+                        modules.push({ 
+                            cert: 'OLD BCSE', 
+                            module: i, 
+                            date: record[moduleField],
+                            name: `OLD BCSE Module ${i}`
+                        });
+                    }
+                }
+                
+                // PSPP Modules
+                for (let i = 1; i <= 5; i++) {
+                    const moduleField = `PSPP Mod ${i}`;
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970' && record[moduleField] !== '#N/A' && record[moduleField].trim()) {
+                        modules.push({ 
+                            cert: 'PSPP', 
+                            module: i, 
+                            date: record[moduleField],
+                            name: `PSPP Module ${i}`
                         });
                     }
                 }
