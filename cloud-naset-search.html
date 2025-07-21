@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NASET Customer Search Tool</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .lucide-icon {
+            width: 1rem;
+            height: 1rem;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .mobile-grid {
+                grid-template-columns: 1fr;
+            }
+            .mobile-text {
+                font-size: 0.875rem;
+            }
+            .mobile-padding {
+                padding: 1rem;
+            }
+        }
+        
+        /* File upload styling for mobile */
+        .file-input {
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        
+        .file-input::-webkit-file-upload-button {
+            visibility: hidden;
+        }
+        
+        .file-input::before {
+            content: 'Choose CSV File';
+            display: inline-block;
+            background: linear-gradient(top, #f9f9f9, #e3e3e3);
+            border: 1px solid #999;
+            border-radius: 3px;
+            padding: 5px 8px;
+            outline: none;
+            white-space: nowrap;
+            cursor: pointer;
+            text-shadow: 1px 1px #fff;
+            font-weight: 700;
+            font-size: 10pt;
+        }
+        
+        .file-input:hover::before {
+            border-color: black;
+        }
+        
+        .file-input:active::before {
+            background: -webkit-linear-gradient(top, #e3e3e3, #f9f9f9);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Lucide icons as SVG components
+        const Search = ({ className = "" }) => (
+            <svg className={`lucide-icon ${className}`} viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+        );
+
+        const User = ({ className = "" }) => (
+            <svg className={`lucide-icon ${className}`} viewBox="0 0 24 24">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        );
+
+        const Calendar = ({ className = "" }) => (
+            <svg className={`lucide-icon ${className}`} viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        );
+
+        const Tag = ({ className = "" }) => (
+            <svg className={`lucide-icon ${className}`} viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+            </svg>
+        );
+
+        const Award = ({ className = "" }) => (
+            <svg className={`lucide-icon ${className}`} viewBox="0 0 24 24">
+                <circle cx="12" cy="8" r="7"></circle>
+                <polyline points="8.21,13.89 7,23 12,20 17,23 15.79,13.88"></polyline>
+            </svg>
+        );
+
+        const Upload = ({ className = "" }) => (
+            <svg className={`lucide-icon ${className}`} viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7,10 12,15 17,10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+        );
+
+        const BookOpen = ({ className = "" }) => (
+            <svg className={`lucide-icon ${className}`} viewBox="0 0 24 24">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+        );
+
+        const CustomerSearchTool = () => {
+            const [searchEmail, setSearchEmail] = useState('');
+            const [customerData, setCustomerData] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [searchResults, setSearchResults] = useState([]);
+            const [fileUploaded, setFileUploaded] = useState(false);
+            const [fileName, setFileName] = useState('');
+
+            const parseCSV = (csvText) => {
+                const lines = csvText.split('\n');
+                if (lines.length === 0) return [];
+                
+                const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+                const data = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim()) {
+                        const values = [];
+                        let current = '';
+                        let inQuotes = false;
+                        
+                        for (let j = 0; j < lines[i].length; j++) {
+                            const char = lines[i][j];
+                            if (char === '"') {
+                                inQuotes = !inQuotes;
+                            } else if (char === ',' && !inQuotes) {
+                                values.push(current.trim().replace(/"/g, ''));
+                                current = '';
+                            } else {
+                                current += char;
+                            }
+                        }
+                        values.push(current.trim().replace(/"/g, ''));
+                        
+                        const row = {};
+                        headers.forEach((header, index) => {
+                            row[header] = values[index] || '';
+                        });
+                        data.push(row);
+                    }
+                }
+                
+                return data;
+            };
+
+            const handleFileUpload = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                setLoading(true);
+                setFileName(file.name);
+                
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    try {
+                        const csvData = e.target.result;
+                        const data = parseCSV(csvData);
+                        
+                        setCustomerData(data);
+                        setFileUploaded(true);
+                        setLoading(false);
+                    } catch (error) {
+                        console.error('Error parsing CSV:', error);
+                        alert('Error parsing CSV file. Please make sure it\'s a valid CSV.');
+                        setLoading(false);
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+
+            const handleSearch = () => {
+                if (!searchEmail.trim()) {
+                    setSearchResults([]);
+                    return;
+                }
+
+                const email = searchEmail.toLowerCase().trim();
+                const results = customerData.filter(row => 
+                    row.EMAIL && row.EMAIL.toLowerCase().includes(email)
+                );
+                
+                setSearchResults(results);
+            };
+
+            const formatDate = (dateStr) => {
+                if (!dateStr || dateStr === '1/1/70' || dateStr === '1/1/1970') return 'Not set';
+                return dateStr;
+            };
+
+            const getCertificationBadges = (record) => {
+                const badges = [];
+                if (record.BCASE) badges.push({ name: 'BCASE', value: record.BCASE });
+                if (record.BCIEP) badges.push({ name: 'BCIEP', value: record.BCIEP });
+                if (record.BCISE) badges.push({ name: 'BCISE', value: record.BCISE });
+                if (record.BCSE) badges.push({ name: 'BCSE', value: record.BCSE });
+                if (record.BCCM) badges.push({ name: 'BCCM', value: record.BCCM });
+                if (record['BCASE Business']) badges.push({ name: 'BCASE Business', value: record['BCASE Business'] });
+                return badges;
+            };
+
+            const getModuleCompletions = (record) => {
+                const modules = [];
+                
+                // BCASE Modules
+                for (let i = 1; i <= 6; i++) {
+                    const moduleField = `BCASE Mod ${i}`;
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                        modules.push({ 
+                            cert: 'BCASE', 
+                            module: i, 
+                            date: record[moduleField],
+                            name: `BCASE Module ${i}`
+                        });
+                    }
+                }
+                
+                // BCIEP Modules
+                for (let i = 1; i <= 6; i++) {
+                    const moduleField = `BCIEP Mod ${i}`;
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                        modules.push({ 
+                            cert: 'BCIEP', 
+                            module: i, 
+                            date: record[moduleField],
+                            name: `BCIEP Module ${i}`
+                        });
+                    }
+                }
+                
+                // BCISE Modules
+                for (let i = 1; i <= 5; i++) {
+                    const moduleField = `BCISE Mod ${i}`;
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                        modules.push({ 
+                            cert: 'BCISE', 
+                            module: i, 
+                            date: record[moduleField],
+                            name: `BCISE Module ${i}`
+                        });
+                    }
+                }
+                
+                // BCSE Modules
+                for (let i = 1; i <= 7; i++) {
+                    const moduleField = `BCSE Mod ${i}`;
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                        modules.push({ 
+                            cert: 'BCSE', 
+                            module: i, 
+                            date: record[moduleField],
+                            name: `BCSE Module ${i}`
+                        });
+                    }
+                }
+                
+                // BCCM Modules
+                for (let i = 1; i <= 7; i++) {
+                    const moduleField = `BCCM Mod ${i}`;
+                    if (record[moduleField] && record[moduleField] !== '1/1/70' && record[moduleField] !== '1/1/1970') {
+                        modules.push({ 
+                            cert: 'BCCM', 
+                            module: i, 
+                            date: record[moduleField],
+                            name: `BCCM Module ${i}`
+                        });
+                    }
+                }
+                
+                // Sort by date (most recent first)
+                modules.sort((a, b) => {
+                    const dateA = new Date(a.date);
+                    const dateB = new Date(b.date);
+                    return dateB - dateA;
+                });
+                
+                return modules;
+            };
+
+            const getMostRecentCompletion = (record) => {
+                const modules = getModuleCompletions(record);
+                return modules.length > 0 ? modules[0] : null;
+            };
+
+            if (!fileUploaded) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-lg shadow-lg p-6 md:p-8 max-w-md w-full mx-4">
+                            <div className="text-center">
+                                <Upload className="mx-auto mb-4 text-blue-600" style={{width: '3rem', height: '3rem'}} />
+                                <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">NASET Customer Search</h1>
+                                <p className="text-gray-600 mb-6 text-sm md:text-base">Upload your CSV file to start searching customer records</p>
+                                
+                                <label className="block cursor-pointer">
+                                    <input
+                                        type="file"
+                                        accept=".csv"
+                                        onChange={handleFileUpload}
+                                        className="file-input block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                                    />
+                                </label>
+                                
+                                <p className="text-xs text-gray-500 mt-4">
+                                    Supports CSV files with customer data including EMAIL column
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="text-center p-4">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                            <p className="text-gray-600">Processing your data...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50 p-3 md:p-6">
+                    <div className="max-w-6xl mx-auto">
+                        {/* Header */}
+                        <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-4 md:mb-6">
+                            <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-2">NASET Customer Search</h1>
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                <p className="text-gray-600 text-sm md:text-base">
+                                    Search through {customerData.length.toLocaleString()} customer records by email address
+                                </p>
+                                <button 
+                                    onClick={() => {setFileUploaded(false); setCustomerData([]); setSearchResults([]); setSearchEmail(''); setFileName('');}}
+                                    className="text-xs md:text-sm text-blue-600 hover:underline self-start md:self-auto"
+                                >
+                                    Upload different file
+                                </button>
+                            </div>
+                            {fileName && (
+                                <p className="text-xs text-gray-500 mt-2">Current file: {fileName}</p>
+                            )}
+                        </div>
+
+                        {/* Search */}
+                        <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-4 md:mb-6">
+                            <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="email"
+                                        placeholder="Enter email address to search..."
+                                        value={searchEmail}
+                                        onChange={(e) => setSearchEmail(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleSearch}
+                                    className="px-4 md:px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm md:text-base"
+                                >
+                                    Search
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Results */}
+                        {searchResults.length > 0 && (
+                            <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                                <div className="flex items-center gap-2 mb-4 md:mb-6">
+                                    <User className="text-blue-600" />
+                                    <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                                        Found {searchResults.length} record{searchResults.length !== 1 ? 's' : ''} for "{searchEmail}"
+                                    </h2>
+                                </div>
+
+                                <div className="space-y-4 md:space-y-6">
+                                    {searchResults.map((record, index) => (
+                                        <div key={index} className="border border-gray-200 rounded-lg p-4 md:p-5 hover:shadow-md transition-shadow">
+                                            {/* Basic Info */}
+                                            <div className="mobile-grid grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4">
+                                                <div>
+                                                    <h3 className="font-semibold text-base md:text-lg text-gray-900">{record['FULL NAME']}</h3>
+                                                    <p className="text-gray-600 text-sm md:text-base break-all">{record.EMAIL}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs md:text-sm text-gray-500">Membership Type</p>
+                                                    <p className="font-medium text-sm md:text-base">{record['Membership Type'] || 'Not specified'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs md:text-sm text-gray-500">Record #{record['#']}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Dates */}
+                                            <div className="mobile-grid grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar className="text-green-600 flex-shrink-0" />
+                                                    <div>
+                                                        <p className="text-xs md:text-sm text-gray-500">Start Date</p>
+                                                        <p className="font-medium text-sm md:text-base">{formatDate(record['Membership Start'])}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar className="text-red-600 flex-shrink-0" />
+                                                    <div>
+                                                        <p className="text-xs md:text-sm text-gray-500">End Date</p>
+                                                        <p className="font-medium text-sm md:text-base">{formatDate(record['Membership Ends'])}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar className="text-blue-600 flex-shrink-0" />
+                                                    <div>
+                                                        <p className="text-xs md:text-sm text-gray-500">Last Login</p>
+                                                        <p className="font-medium text-sm md:text-base">{formatDate(record['Last Login'])}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Kajabi Info */}
+                                            {(record['Kajabi Product'] || record['Kajabi Tag']) && (
+                                                <div className="mobile-grid grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4">
+                                                    {record['Kajabi Product'] && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Tag className="text-purple-600 flex-shrink-0" />
+                                                            <div>
+                                                                <p className="text-xs md:text-sm text-gray-500">Kajabi Product</p>
+                                                                <p className="font-medium text-sm md:text-base">{record['Kajabi Product']}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {record['Kajabi Tag'] && (
+                                                        <div className="flex items-center gap-2">
+                                                            <Tag className="text-purple-600 flex-shrink-0" />
+                                                            <div>
+                                                                <p className="text-xs md:text-sm text-gray-500">Kajabi Tag</p>
+                                                                <p className="font-medium text-sm md:text-base">{record['Kajabi Tag']}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Certifications */}
+                                            {getCertificationBadges(record).length > 0 && (
+                                                <div className="mb-4">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Award className="text-yellow-600 flex-shrink-0" />
+                                                        <p className="text-xs md:text-sm text-gray-500 font-medium">Certifications</p>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {getCertificationBadges(record).map((badge, badgeIndex) => (
+                                                            <span
+                                                                key={badgeIndex}
+                                                                className="px-2 md:px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs md:text-sm font-medium"
+                                                            >
+                                                                {badge.name}: {badge.value}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Most Recent Module Completion */}
+                                            {getMostRecentCompletion(record) && (
+                                                <div className="mb-4">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Calendar className="text-green-600 flex-shrink-0" />
+                                                        <p className="text-xs md:text-sm text-gray-500 font-medium">Most Recent Module Completion</p>
+                                                    </div>
+                                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                                        <p className="font-semibold text-green-800 text-sm md:text-base">
+                                                            {getMostRecentCompletion(record).name}
+                                                        </p>
+                                                        <p className="text-green-600 text-xs md:text-sm">
+                                                            Completed: {getMostRecentCompletion(record).date}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* All Module Completions */}
+                                            {getModuleCompletions(record).length > 0 && (
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <BookOpen className="text-indigo-600 flex-shrink-0" />
+                                                        <p className="text-xs md:text-sm text-gray-500 font-medium">
+                                                            All Module Completions ({getModuleCompletions(record).length})
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
+                                                        {getModuleCompletions(record).map((module, moduleIndex) => (
+                                                            <div 
+                                                                key={moduleIndex}
+                                                                className="bg-indigo-50 border border-indigo-200 rounded-lg p-2 md:p-3"
+                                                            >
+                                                                <p className="font-medium text-indigo-800 text-xs md:text-sm">
+                                                                    {module.name}
+                                                                </p>
+                                                                <p className="text-indigo-600 text-xs">
+                                                                    {module.date}
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {searchEmail && searchResults.length === 0 && (
+                            <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 text-center">
+                                <p className="text-gray-500 text-sm md:text-base">No records found for "{searchEmail}"</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<CustomerSearchTool />, document.getElementById('root'));
+    </script>
+</body>
+</html>
